@@ -7,21 +7,66 @@ source("helpers.R")
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
-  "Add a title panel here!",
+  titlePanel("Correlation Exploration"),
   
   sidebarLayout(
     sidebarPanel(
       h2("Select Variables to Find Correlation:"),
-      "put your selectize inputs here!",
-      "Give them internal IDs of corr_x and corr_y.",
-      "Note the vector with these names comes from the helpers.R files. The object is called `numeric_vars`",
-      "Palce your radio buttons here! One radio button for each variable we may subset on. Set the internal IDs for these to be hhl_corr, fs_corr, and schl_corr.",
+      # "put your selectize inputs here!",
+      # Select x variable
+      selectInput(
+        inputId = "corr_x",
+        label = "x Variable",
+        choices = numeric_vars,
+        selected = "Total person's income"
+      ),
+      # Select y variable
+      selectInput(
+        inputId = "corr_y",
+        label = "y Variable",
+        choices = numeric_vars,
+        selected = "Travel time to work"
+      ),
+      # "Give them internal IDs of corr_x and corr_y.",
+      # "Note the vector with these names comes from the helpers.R files. The object is called `numeric_vars`",
+      # "Place your radio buttons here! One radio button for each variable we may subset on. Set the internal IDs for these to be hhl_corr, fs_corr, and schl_corr.",
+      h2("Choose a subset of the data:"),
+      # Add a radio button for Household Language
+      radioButtons(
+        "hhl_corr",
+        "Household Language",
+        choices = list("All" = "all", "English only" = "english", "Spanish" = "spanish", "Other" = "other"),
+        selected = "all"
+      ),
+      # Add a radio button for SNAP Recipient
+      radioButtons(
+        "fs_corr",
+        "SNAP Recipient",
+        choices = list("All" = "all", "Yes" = "yes", "No" = "no"),
+        selected = "all"
+      ),
+      # Add a radio button for Educational attainment
+      radioButtons(
+        "schl_corr",
+        "Educational attainment",
+        choices = list("All" = "all", "High School not Completed" = "no_hs", "High School or GED" = "hs",
+                       "College Degree" = "college"),
+        selected = "all"
+      ),
       h2("Select a Sample Size"),
-      "Put your slider for sample size here. Give this an ID of corr_n.",
+      # "Put your slider for sample size here. Give this an ID of corr_n.",
+      sliderInput(
+        "corr_n",
+        "",
+        min = 20,
+        max = 500,
+        value = 20
+      ),
       actionButton("corr_sample","Get a Sample!")
     ),
     mainPanel(
-      "Add a plotOutput here for the scatter plot",
+      # "Add a plotOutput here for the scatter plot",
+      plotOutput(outputId = "scatterplot"),
       conditionalPanel("input.corr_sample",
                        h2("Guess the correlation!"),
                        column(6, 
@@ -48,8 +93,9 @@ server <- function(input, output, session) {
     #################################################3
     ##Correlation tab
     #Create a reactiveValues() object called sample_corr
-    #this object should hve two elements, corr_data and corr_truth
+    #this object should have two elements, corr_data and corr_truth
     #both should be set to null to start with!
+    sample_corr <- reactiveValues(corr_data = NULL, corr_truth = NULL)
 
     #update input boxes so they can't choose the same variable
     observeEvent(c(input$corr_x, input$corr_y), {
@@ -67,6 +113,7 @@ server <- function(input, output, session) {
     #Use an observeEvent() to look for the action button (corr_sample)
     #Modify the code below (this will need to go in the observeEvent) to
     #subset the data appropriately
+    observeEvent(input$corr_sample, {
       if(input$hhl_corr == "all"){
         hhl_sub <- HHLvals
       } else if(input$hhl_corr == "english"){
@@ -122,17 +169,21 @@ server <- function(input, output, session) {
       #the corr_truth argument should be updated to be the correlation between 
       #the two variables selected: 
       #cor(sample_corr$corr_data |> select(corr_vars))[1,2]
-
+      sample_corr$corr_data <- subsetted_data[index,]
+      sample_corr$corr_truth <- cor(sample_corr$corr_data |> select(corr_vars))[1,2]
+    })
     
     #Create a renderPlot() object to output a scatter plot
     #Use the code below to validate that data exists,
     #(you'll need to install the shinyalert package if you don't have it)
     #and then create the appropriate scatter plot
+    output$scatterplot <- renderPlot({
       validate(
         need(!is.null(sample_corr$corr_data), "Please select your variables, subset, and click the 'Get a Sample!' button.")
       ) #this is a useful function to add as a placeholder until data is generated!
       ggplot(sample_corr$corr_data, aes_string(x = isolate(input$corr_x), y = isolate(input$corr_y))) +
         geom_point()
+    })
 
     
     #Use this code for the correlation guessing game!
